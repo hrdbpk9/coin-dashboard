@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Wellness Coin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --surface: #141828;
+    --surface2: #1c2235;
+    --surface3: #232b42;
+    --border: #2a3350;
+    --accent: #4f8ef7;
+    --accent2: #7c5ef7;
+    --accent3: #f7c94f;
+    --green: #3dd68c;
+    --red: #f76f6f;
+    --text: #e8eaf6;
+    --text-muted: #7b87aa;
+    --text-dim: #4a5570;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Sarabun', 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+  /* ── Layout ── */
+  .app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    display: flex; flex-direction: column; gap: 6px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .sidebar-logo {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800; font-size: 18px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3); }
+  .nav-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text-dim); padding: 8px 12px 4px;
+  }
+  .nav-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    cursor: pointer; border: none; background: transparent;
+    color: var(--text-muted); font-family: 'Sarabun', sans-serif;
+    font-size: 14px; text-align: left; width: 100%;
+    transition: all 0.18s;
+  }
+  .nav-btn:hover { background: var(--surface2); color: var(--text); }
+  .nav-btn.active { background: rgba(79,142,247,0.12); color: var(--accent); font-weight: 600; }
+  .nav-btn .icon { font-size: 17px; width: 22px; text-align: center; }
+  /* ── Main ── */
+  .main { padding: 32px 36px; overflow-x: hidden; }
+  .page { display: none; }
+  .page.active { display: block; }
+  /* ── Page Header ── */
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 {
+    font-family: 'Inter', sans-serif;
+    font-size: 26px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .page-header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+  /* ── Config panel ── */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 28px;
+  }
+  .config-panel h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
+  .config-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .field input, .field select {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: 'Sarabun', sans-serif; font-size: 14px;
+    padding: 10px 14px; outline: none; transition: border-color 0.18s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--text-dim); }
+  .btn {
+    padding: 10px 22px; border-radius: var(--radius-sm);
+    border: none; cursor: pointer; font-family: 'Sarabun', sans-serif;
+    font-size: 14px; font-weight: 600; transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #3a79e8; }
+  .btn-secondary { background: var(--surface3); color: var(--text); }
+  .btn-secondary:hover { background: var(--border); }
+  /* ── Status bar ── */
+  .status-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: var(--radius-sm);
+    margin-top: 14px; font-size: 13px;
+  }
+  .status-bar.info { background: rgba(79,142,247,0.1); color: var(--accent); border: 1px solid rgba(79,142,247,0.25); }
+  .status-bar.success { background: rgba(61,214,140,0.1); color: var(--green); border: 1px solid rgba(61,214,140,0.25); }
+  .status-bar.error { background: rgba(247,111,111,0.1); color: var(--red); border: 1px solid rgba(247,111,111,0.25); }
+  /* ── KPI cards ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 16px; margin-bottom: 28px; }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-line, var(--accent));
+  }
+  .kpi-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .kpi-value { font-family: 'Inter', sans-serif; font-size: 30px; font-weight: 800; color: var(--text); margin-top: 8px; letter-spacing: -1px; }
+  .kpi-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  /* ── Top players ── */
+  .top-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+  }
+  .panel-title {
+    font-size: 13px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title .badge {
+    background: rgba(79,142,247,0.15); color: var(--accent);
+    border-radius: 20px; padding: 2px 10px; font-size: 11px;
+  }
+  /* ── Leaderboard ── */
+  .leader-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .leader-item:last-child { border-bottom: none; }
+  .rank {
+    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .rank.r1 { background: linear-gradient(135deg,#f7c94f,#f7963a); color: #1a1000; }
+  .rank.r2 { background: linear-gradient(135deg,#b0bec5,#78909c); color: #0f1420; }
+  .rank.r3 { background: linear-gradient(135deg,#a96434,#7c4a24); color: #fff8f4; }
+  .rank.rn { background: var(--surface3); color: var(--text-muted); }
+  .leader-info { flex: 1; min-width: 0; }
+  .leader-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .leader-dept { font-size: 11px; color: var(--text-dim); }
+  .leader-coin {
+    font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 800;
+    color: var(--accent3);
+  }
+  /* ── Chart container ── */
+  .chart-wrapper { position: relative; height: 240px; }
+  /* ── Search page ── */
+  .search-bar-wrap {
+    position: relative; margin-bottom: 20px;
+  }
+  .search-bar-wrap input {
+    width: 100%; padding: 13px 18px 13px 46px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: 'Sarabun', sans-serif; font-size: 15px; outline: none;
+    transition: border-color 0.18s;
+  }
+  .search-bar-wrap input:focus { border-color: var(--accent); }
+  .search-icon {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    color: var(--text-dim); font-size: 17px; pointer-events: none;
+  }
+  .filter-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-muted); cursor: pointer; transition: all 0.16s;
+  }
+  .filter-chip.active { background: rgba(79,142,247,0.15); border-color: var(--accent); color: var(--accent); }
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13.5px;
+  }
+  thead th {
+    background: var(--surface2); color: var(--text-muted);
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; padding: 11px 14px; text-align: left;
+    white-space: nowrap; border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.14s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 11px 14px; white-space: nowrap; }
+  .cell-id { color: var(--text-muted); font-size: 12px; }
+  .cell-name { font-weight: 600; }
+  .cell-dept { color: var(--text-muted); }
+  .cell-coin {
+    font-family: 'Inter', sans-serif; font-weight: 700; color: var(--accent3);
+  }
+  .cell-check { text-align: center; font-size: 14px; }
+  .pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  }
+  .pill-yes { background: rgba(61,214,140,0.12); color: var(--green); }
+  .pill-no { background: rgba(247,111,111,0.08); color: var(--text-dim); }
+  /* ── Profile modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    z-index: 1000; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 32px;
+    width: 600px; max-width: 95vw; max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: popIn 0.22s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
+  .modal-name { font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 800; }
+  .modal-id { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+  .close-btn { background: var(--surface3); border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; color: var(--text-muted); font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .close-btn:hover { background: var(--border); color: var(--text); }
+  .modal-big-coin {
+    font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 900;
+    color: var(--accent3); text-align: center; margin: 10px 0 4px;
+  }
+  .modal-coin-label { text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+  .activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .activity-item {
+    background: var(--surface2); border-radius: var(--radius-sm);
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .activity-name { font-size: 13px; color: var(--text-muted); }
+  /* ── Pagination ── */
+  .pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; }
+  .pagination-info { font-size: 13px; color: var(--text-dim); }
+  .pagination-btns { display: flex; gap: 6px; }
+  .page-btn {
+    padding: 6px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-muted); cursor: pointer; font-size: 13px; transition: all 0.16s;
+  }
+  .page-btn:hover { background: var(--surface3); color: var(--text); }
+  .page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  /* ── Loading ── */
+  .loader {
+    display: none; align-items: center; justify-content: center;
+    padding: 60px; flex-direction: column; gap: 16px;
+  }
+  .loader.show { display: flex; }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state {
+    display: none; text-align: center;
+    padding: 60px 20px; color: var(--text-muted);
+    flex-direction: column; align-items: center; gap: 10px;
+  }
+  .empty-state.show { display: flex; }
+  .empty-icon { font-size: 40px; }
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; padding: 14px 16px; }
+    .sidebar-logo { margin-bottom: 0; }
+    .nav-label { display: none; }
+    .main { padding: 20px 16px; }
+    .top-section { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .activity-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="dot"></div> CoinBoard</div>
+    <div class="nav-label">เมนูหลัก</div>
+    <button class="nav-btn active" onclick="showPage('dashboard', this)">
+      <span class="icon">📊</span> ภาพรวม
+    </button>
+    <button class="nav-btn" onclick="showPage('search', this)">
+      <span class="icon">🔍</span> ค้นหาพนักงาน
+    </button>
+    <button class="nav-btn" onclick="showPage('settings', this)">
+      <span class="icon">⚙️</span> ตั้งค่า
+    </button>
+    <div style="flex:1"></div>
+    <div style="font-size:11px; color:var(--text-dim); padding:8px 12px;">
+      รองรับ Google Sheets API
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ════ Settings Page ════ -->
+    <div id="page-settings" class="page active" style="display:block">
+      <div class="page-header">
+        <h1>⚙️ ตั้งค่าแหล่งข้อมูล</h1>
+        <p>เชื่อมต่อกับ Google Sheets ของคุณ</p>
+      </div>
+      <div class="config-panel">
+        <h2>Google Sheets Configuration</h2>
+        <div class="config-row">
+          <div class="field" style="flex:3">
+            <label>Sheet ID</label>
+            <input id="sheetId" placeholder="ตัวอย่าง: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" />
+          </div>
+          <div class="field" style="flex:2">
+            <label>Sheet Name (Tab)</label>
+            <input id="sheetName" value="Sheet1" placeholder="Sheet1" />
+          </div>
+          <div class="field" style="flex:2">
+            <label>API Key</label>
+            <input id="apiKey" type="password" placeholder="Google Sheets API Key" />
+          </div>
+        </div>
+        <div class="config-row" style="margin-top:14px;">
+          <div class="field" style="flex:2">
+            <label>แถวหัวตาราง (Header Row)</label>
+            <input id="headerRow" value="1" type="number" min="1" />
+          </div>
+          <div class="field" style="flex:2">
+            <label>แถวข้อมูลเริ่มต้น</label>
+            <input id="dataStartRow" value="2" type="number" min="2" />
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="loadData()">🔄 โหลดข้อมูล</button>
+            <button class="btn btn-secondary" onclick="loadSampleData()">📋 ใช้ข้อมูลตัวอย่าง</button>
+          </div>
+        </div>
+        <div id="statusBar" class="status-bar info" style="display:none"></div>
+      </div>
+
+      <div class="config-panel">
+        <h2>📖 วิธีใช้งาน</h2>
+        <ol style="padding-left:20px; line-height:2; color:var(--text-muted); font-size:14px;">
+          <li>เปิด Google Sheets ของคุณ → คัดลอก Sheet ID จาก URL</li>
+          <li>ตั้งค่า Google Sheets API ใน Google Cloud Console</li>
+          <li>เปิดสิทธิ์ให้ Sheet เป็น "Anyone with the link can view"</li>
+          <li>วางข้อมูลตามลำดับคอลัมน์: <span style="color:var(--accent);">รหัสพนักงาน, ชื่อ, สกุล, หน่วยงาน, รวม Coin, เข้าร่วมอบรม สสส., ตรวจ Pre-Test, Food Workshop, Challenge 2:1:1, Step-Up Speedster #1, 7-Minute Blitz #1, Speedy Creator, 7-Minute Blitz #2, Aerobic Party, Step-Up Speedster #2</span></li>
+          <li>กด "โหลดข้อมูล" หรือทดลองกด "ใช้ข้อมูลตัวอย่าง"</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ════ Dashboard Page ════ -->
+    <div id="page-dashboard" class="page">
+      <div class="page-header">
+        <h1>📊 ภาพรวม Wellness Coin</h1>
+        <p id="lastUpdated">กรุณาโหลดข้อมูลก่อน</p>
+      </div>
+
+      <div id="loader-dash" class="loader"><div class="spinner"></div><span style="color:var(--text-muted)">กำลังโหลดข้อมูล…</span></div>
+
+      <div id="dashboard-content" style="display:none">
+        <!-- KPI -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--accent-line:var(--accent)">
+            <div class="kpi-label">พนักงานทั้งหมด</div>
+            <div class="kpi-value" id="kpi-total">—</div>
+            <div class="kpi-sub">คน</div>
+          </div>
+          <div class="kpi-card" style="--accent-line:var(--accent3)">
+            <div class="kpi-label">Coin รวมสูงสุด</div>
+            <div class="kpi-value" id="kpi-max">—</div>
+            <div class="kpi-sub" id="kpi-max-name">—</div>
+          </div>
+          <div class="kpi-card" style="--accent-line:var(--green)">
+            <div class="kpi-label">Coin เฉลี่ย</div>
+            <div class="kpi-value" id="kpi-avg">—</div>
+            <div class="kpi-sub">ต่อคน</div>
+          </div>
+          <div class="kpi-card" style="--accent-line:var(--accent2)">
+            <div class="kpi-label">Coin รวมทั้งหมด</div>
+            <div class="kpi-value" id="kpi-sum">—</div>
+            <div class="kpi-sub">coins</div>
+          </div>
+        </div>
+
+        <!-- Top section -->
+        <div class="top-section">
+          <div class="panel">
+            <div class="panel-title">🏆 Top 10 ผู้นำ <span class="badge">Coin</span></div>
+            <div id="leaderboard"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">📈 กราฟ Top 10</div>
+            <div class="chart-wrapper"><canvas id="topChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Activity chart -->
+        <div class="panel" style="margin-bottom:28px">
+          <div class="panel-title">🎯 การมีส่วนร่วมในแต่ละกิจกรรม</div>
+          <div class="chart-wrapper" style="height:260px"><canvas id="activityChart"></canvas></div>
+        </div>
+
+        <!-- Dept chart -->
+        <div class="top-section">
+          <div class="panel">
+            <div class="panel-title">🏢 Coin รวมตามหน่วยงาน</div>
+            <div class="chart-wrapper"><canvas id="deptChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">📦 การกระจาย Coin</div>
+            <div class="chart-wrapper"><canvas id="distChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ Search Page ════ -->
+    <div id="page-search" class="page">
+      <div class="page-header">
+        <h1>🔍 ค้นหาพนักงาน</h1>
+        <p>ดูคะแนนรายบุคคล กรองตามหน่วยงาน เรียงลำดับคะแนน</p>
+      </div>
+
+      <div class="search-bar-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="searchInput" placeholder="ค้นหาด้วยชื่อ นามสกุล รหัสพนักงาน หรือหน่วยงาน…" oninput="onSearch()" />
+      </div>
+
+      <div class="filter-row" id="deptFilters">
+        <div class="filter-chip active" onclick="setDeptFilter('all',this)">ทุกหน่วยงาน</div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <div style="font-size:13px; color:var(--text-muted);">แสดง <span id="result-count">0</span> รายการ</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span style="font-size:12px; color:var(--text-dim)">เรียงตาม</span>
+            <select id="sortSelect" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 10px; font-family:'Sarabun',sans-serif; font-size:13px; outline:none;" onchange="renderTable()">
+              <option value="coin-desc">Coin มากไปน้อย</option>
+              <option value="coin-asc">Coin น้อยไปมาก</option>
+              <option value="name-asc">ชื่อ ก-ฮ</option>
+              <option value="id-asc">รหัสพนักงาน</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>รหัส</th>
+                <th>ชื่อ-สกุล</th>
+                <th>หน่วยงาน</th>
+                <th onclick="toggleSort('coin')">รวม Coin ⇅</th>
+                <th>สสส.</th><th>Pre-Test</th><th>Food WS</th>
+                <th>2:1:1</th><th>SpeedUp#1</th><th>7-Blitz#1</th>
+                <th>Creator</th><th>7-Blitz#2</th><th>Aerobic</th><th>SpeedUp#2</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div id="empty-search" class="empty-state">
+          <div class="empty-icon">🔎</div>
+          <div>ไม่พบข้อมูลที่ตรงกัน</div>
+          <div style="font-size:12px; color:var(--text-dim)">ลองเปลี่ยนคำค้นหาหรือตัวกรอง</div>
+        </div>
+        <div class="pagination">
+          <div class="pagination-info" id="pageInfo"></div>
+          <div class="pagination-btns" id="pageBtns"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-name" id="modal-name"></div>
+        <div class="modal-id" id="modal-id"></div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-big-coin" id="modal-coin"></div>
+    <div class="modal-coin-label">รวม Coin ทั้งหมด</div>
+    <div class="chart-wrapper" style="height:200px; margin-bottom:20px"><canvas id="modalChart"></canvas></div>
+    <div class="activity-grid" id="modal-activities"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  State
+// ══════════════════════════════════════
+const ACTIVITIES = [
+  'เข้าร่วมอบรม สสส.','ตรวจ Pre-Test','Food Workshop','Challenge 2:1:1',
+  'Step-Up Speedster #1','7-Minute Blitz #1','Speedy Creator',
+  '7-Minute Blitz #2','Aerobic Party','Step-Up Speedster #2'
+];
+const ACT_SHORT = ['สสส.','Pre-Test','Food WS','2:1:1','SpeedUp#1','7-Blitz#1','Creator','7-Blitz#2','Aerobic','SpeedUp#2'];
+
+let allData = [];
+let filteredData = [];
+let currentDept = 'all';
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let chartInstances = {};
+let sortState = { key: 'coin', dir: 'desc' };
+
+// ══════════════════════════════════════
+//  Navigation
+// ══════════════════════════════════════
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => { p.style.display='none'; p.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const pg = document.getElementById('page-'+name);
+  if (pg) { pg.style.display='block'; pg.classList.add('active'); }
+  if (btn) btn.classList.add('active');
+  if (name === 'dashboard' && allData.length) renderDashboard();
+  if (name === 'search' && allData.length) renderTable();
+}
+
+// initial: show settings
+document.addEventListener('DOMContentLoaded', () => {
+  showPage('settings', document.querySelectorAll('.nav-btn')[2]);
+});
+
+// ══════════════════════════════════════
+//  Google Sheets loader
+// ══════════════════════════════════════
+async function loadData() {
+  const sheetId = document.getElementById('sheetId').value.trim();
+  const sheetName = document.getElementById('sheetName').value.trim() || 'Sheet1';
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!sheetId || !apiKey) { showStatus('กรุณากรอก Sheet ID และ API Key', 'error'); return; }
+
+  showStatus('กำลังเชื่อมต่อ Google Sheets…', 'info');
+  const range = encodeURIComponent(sheetName);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { const e = await res.json(); showStatus('❌ '+((e.error&&e.error.message)||'ไม่สามารถเชื่อมต่อได้'), 'error'); return; }
+    const json = await res.json();
+    const rows = json.values || [];
+    const headerRowIdx = parseInt(document.getElementById('headerRow').value||1) - 1;
+    const dataStart = parseInt(document.getElementById('dataStartRow').value||2) - 1;
+    if (rows.length < dataStart+1) { showStatus('ไม่พบข้อมูล', 'error'); return; }
+    const dataRows = rows.slice(dataStart);
+    allData = parseRows(dataRows);
+    showStatus(`✅ โหลดข้อมูลสำเร็จ: ${allData.length} รายการ`, 'success');
+    postLoad();
+  } catch(e) { showStatus('❌ '+e.message, 'error'); }
+}
+
+function parseRows(rows) {
+  return rows.map((r,i) => {
+    const acts = ACTIVITIES.map((_,ai) => {
+      const v = (r[5+ai]||'').toString().trim().toLowerCase();
+      return v === '1' || v === 'true' || v === 'yes' || v === '✓' || v === 'x';
+    });
+    return {
+      id: r[0]||'', name: r[1]||'', surname: r[2]||'', dept: r[3]||'',
+      coin: parseFloat(r[4])||0, activities: acts
+    };
+  }).filter(r => r.id || r.name);
+}
+
+function postLoad() {
+  buildDeptFilters();
+  filteredData = [...allData];
+  document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: '+new Date().toLocaleString('th-TH');
+  showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
+}
+
+function showStatus(msg, type) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg; bar.className = 'status-bar '+type; bar.style.display='flex';
+}
+
+// ══════════════════════════════════════
+//  Sample Data
+// ══════════════════════════════════════
+function loadSampleData() {
+  const depts = ['ฝ่ายบุคคล','ฝ่ายการเงิน','ฝ่ายไอที','ฝ่ายการตลาด','ฝ่ายผลิต','ฝ่ายบัญชี'];
+  const names = [['สมชาย','ใจดี'],['สมหญิง','รักไทย'],['วิชัย','มั่นคง'],['นงนุช','สวยงาม'],
+    ['ประเสริฐ','ดีมาก'],['รัตนา','แสงแก้ว'],['สุรชัย','ยิ้มแย้ม'],['มนัส','กล้าหาญ'],
+    ['กัญญา','มีสุข'],['ธนพล','เจริญสุข'],['อรทัย','ดวงจันทร์'],['ชนินทร','รุ่งเรือง'],
+    ['พิมพ์ใจ','สดใส'],['ณัฐพล','เพชรศรี'],['สุดารัตน์','ทองคำ'],['วรากร','บุญมี'],
+    ['ลัดดา','นิลมณี'],['อภิสิทธิ์','แก้วมณี'],['ชลิตา','ทับทิม'],['พัชรี','โชติช่วง'],
+    ['เกรียงศักดิ์','สุขใจ'],['พงษ์ศักดิ์','มีชัย'],['จิราภา','รัตนพงษ์'],['นภาพร','ดาวเรือง'],
+    ['ทศพล','อุดมสุข'],['ศุภลักษณ์','ทองสุข'],['ไพรัตน์','เดชชัย'],['กาญจนา','วงศ์สุวรรณ'],
+    ['สุทธิพงษ์','บุษบา'],['อุบลรัตน์','มณีรัตน์']
+  ];
+  allData = names.map((n,i) => {
+    const acts = ACTIVITIES.map(() => Math.random()>0.4);
+    const coin = acts.filter(Boolean).length * (5 + Math.floor(Math.random()*10));
+    return { id:'EMP'+(1001+i), name:n[0], surname:n[1], dept:depts[i%depts.length], coin, activities:acts };
+  });
+  showStatus(`✅ โหลดข้อมูลตัวอย่าง: ${allData.length} รายการ`, 'success');
+  postLoad();
+}
+
+// ══════════════════════════════════════
+//  Dashboard rendering
+// ══════════════════════════════════════
+function renderDashboard() {
+  document.getElementById('loader-dash').classList.remove('show');
+  document.getElementById('dashboard-content').style.display = 'block';
+
+  const coins = allData.map(d=>d.coin);
+  const maxPerson = allData.reduce((a,b) => b.coin>a.coin?b:a, allData[0]);
+  document.getElementById('kpi-total').textContent = allData.length;
+  document.getElementById('kpi-max').textContent = maxPerson.coin;
+  document.getElementById('kpi-max-name').textContent = maxPerson.name+' '+maxPerson.surname;
+  document.getElementById('kpi-avg').textContent = (coins.reduce((a,b)=>a+b,0)/coins.length).toFixed(1);
+  document.getElementById('kpi-sum').textContent = coins.reduce((a,b)=>a+b,0).toLocaleString();
+
+  renderLeaderboard();
+  renderTopChart();
+  renderActivityChart();
+  renderDeptChart();
+  renderDistChart();
+}
+
+function renderLeaderboard() {
+  const top10 = [...allData].sort((a,b)=>b.coin-a.coin).slice(0,10);
+  const el = document.getElementById('leaderboard');
+  el.innerHTML = top10.map((p,i) => `
+    <div class="leader-item">
+      <div class="rank ${i<3?'r'+(i+1):'rn'}">${i+1}</div>
+      <div class="leader-info">
+        <div class="leader-name">${p.name} ${p.surname}</div>
+        <div class="leader-dept">${p.dept} · ${p.id}</div>
+      </div>
+      <div class="leader-coin">${p.coin}</div>
+    </div>`).join('');
+}
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+const CHART_COLORS = ['#4f8ef7','#7c5ef7','#f7c94f','#3dd68c','#f76f6f','#4fd6f7','#f78c4f','#b04ff7','#4ff7b0','#f74f9c'];
+
+function renderTopChart() {
+  destroyChart('topChart');
+  const top10 = [...allData].sort((a,b)=>b.coin-a.coin).slice(0,10);
+  chartInstances.topChart = new Chart(document.getElementById('topChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(p=>p.name),
+      datasets: [{ data: top10.map(p=>p.coin), backgroundColor: CHART_COLORS, borderRadius: 6, borderSkipped: false }]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{label:c=>`${top10[c.dataIndex].name} ${top10[c.dataIndex].surname}: ${c.raw} coins`} } },
+      scales:{ x:{ticks:{color:'#7b87aa',font:{size:11}}, grid:{display:false}}, y:{ticks:{color:'#7b87aa',font:{size:11}}, grid:{color:'#2a3350'}} }
+    }
+  });
+}
+
+function renderActivityChart() {
+  destroyChart('activityChart');
+  const counts = ACTIVITIES.map((_,i) => allData.filter(d=>d.activities[i]).length);
+  chartInstances.activityChart = new Chart(document.getElementById('activityChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ACT_SHORT,
+      datasets: [{ data: counts, backgroundColor: CHART_COLORS, borderRadius: 6, borderSkipped: false }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ticks:{color:'#7b87aa'}, grid:{color:'#2a3350'}}, y:{ticks:{color:'#7b87aa', font:{size:12}}, grid:{display:false}} }
+    }
+  });
+}
+
+function renderDeptChart() {
+  destroyChart('deptChart');
+  const depts = [...new Set(allData.map(d=>d.dept))];
+  const sums = depts.map(dept => allData.filter(d=>d.dept===dept).reduce((s,d)=>s+d.coin,0));
+  chartInstances.deptChart = new Chart(document.getElementById('deptChart').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels:depts, datasets:[{ data:sums, backgroundColor:CHART_COLORS, borderWidth:0, hoverOffset:8 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'right', labels:{color:'#7b87aa', font:{size:11}, boxWidth:12, padding:10}} }
+    }
+  });
+}
+
+function renderDistChart() {
+  destroyChart('distChart');
+  const coins = allData.map(d=>d.coin);
+  const min=Math.min(...coins), max=Math.max(...coins);
+  const buckets=6, step=Math.ceil((max-min+1)/buckets)||1;
+  const labels=[],counts=[];
+  for(let i=0;i<buckets;i++){const lo=min+i*step,hi=lo+step-1;labels.push(`${lo}-${hi}`);counts.push(coins.filter(c=>c>=lo&&c<lo+step).length);}
+  chartInstances.distChart = new Chart(document.getElementById('distChart').getContext('2d'), {
+    type:'bar',
+    data:{labels, datasets:[{data:counts, backgroundColor:'#4f8ef7', borderRadius:6, borderSkipped:false}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7b87aa',font:{size:11}},grid:{display:false}},y:{ticks:{color:'#7b87aa'},grid:{color:'#2a3350'}}}
+    }
+  });
+}
+
+// ══════════════════════════════════════
+//  Search / Table
+// ══════════════════════════════════════
+function buildDeptFilters() {
+  const depts = [...new Set(allData.map(d=>d.dept))].sort();
+  const container = document.getElementById('deptFilters');
+  container.innerHTML = `<div class="filter-chip active" onclick="setDeptFilter('all',this)">ทุกหน่วยงาน</div>`
+    + depts.map(d=>`<div class="filter-chip" onclick="setDeptFilter('${d}',this)">${d}</div>`).join('');
+}
+
+function setDeptFilter(dept, el) {
+  currentDept = dept; currentPage = 1;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  applyFilter();
+}
+
+function onSearch() { currentPage=1; applyFilter(); }
+
+function applyFilter() {
+  const q = (document.getElementById('searchInput').value||'').toLowerCase();
+  filteredData = allData.filter(d => {
+    const matchDept = currentDept==='all' || d.dept===currentDept;
+    const matchQ = !q || (d.name+d.surname+d.id+d.dept).toLowerCase().includes(q);
+    return matchDept && matchQ;
+  });
+  renderTable();
+}
+
+function toggleSort(key) { sortState = { key, dir: sortState.key===key&&sortState.dir==='desc'?'asc':'desc' }; renderTable(); }
+
+function renderTable() {
+  const sort = document.getElementById('sortSelect').value;
+  let sorted = [...filteredData];
+  if (sort==='coin-desc') sorted.sort((a,b)=>b.coin-a.coin);
+  else if (sort==='coin-asc') sorted.sort((a,b)=>a.coin-b.coin);
+  else if (sort==='name-asc') sorted.sort((a,b)=>(a.name+a.surname).localeCompare(b.name+b.surname,'th'));
+  else if (sort==='id-asc') sorted.sort((a,b)=>a.id.localeCompare(b.id));
+
+  document.getElementById('result-count').textContent = sorted.length;
+  const empty = document.getElementById('empty-search');
+
+  if (!sorted.length) { empty.classList.add('show'); document.getElementById('tableBody').innerHTML=''; renderPagination(0); return; }
+  empty.classList.remove('show');
+
+  const totalPages = Math.ceil(sorted.length/PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+  const slice = sorted.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+  const maxCoin = Math.max(...allData.map(d=>d.coin));
+  document.getElementById('tableBody').innerHTML = slice.map((p,i) => {
+    const rank = (currentPage-1)*PAGE_SIZE + i + 1;
+    const acts = p.activities.map(a => `<td class="cell-check"><span class="pill ${a?'pill-yes':'pill-no'}">${a?'✓':'—'}</span></td>`).join('');
+    const coinStyle = p.coin===maxCoin ? 'color:var(--accent3); font-weight:800' : '';
+    return `<tr onclick="openModal(${allData.indexOf(p)})" style="cursor:pointer">
+      <td style="color:var(--text-dim)">${rank}</td>
+      <td class="cell-id">${p.id}</td>
+      <td class="cell-name">${p.name} ${p.surname}</td>
+      <td class="cell-dept">${p.dept}</td>
+      <td class="cell-coin" style="${coinStyle}">${p.coin}</td>
+      ${acts}
+      <td><button style="background:var(--surface3);border:none;border-radius:6px;padding:5px 10px;color:var(--text-muted);cursor:pointer;font-size:12px" onclick="event.stopPropagation();openModal(${allData.indexOf(p)})">ดู</button></td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+  document.getElementById('pageInfo').textContent = `หน้า ${currentPage} จาก ${totalPages||1}`;
+  const container = document.getElementById('pageBtns');
+  let html = `<button class="page-btn" onclick="changePage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>`;
+  const range = Array.from({length:Math.min(5,totalPages)},(_,i)=>{
+    let start = Math.max(1, currentPage-2); let end = Math.min(totalPages, start+4);
+    start = Math.max(1, end-4); return start+i;
+  }).filter(p=>p>=1&&p<=totalPages);
+  range.forEach(p => { html+=`<button class="page-btn ${p===currentPage?'active':''}" onclick="changePage(${p})">${p}</button>`; });
+  html+=`<button class="page-btn" onclick="changePage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>›</button>`;
+  container.innerHTML = html;
+}
+
+function changePage(p) { currentPage=p; renderTable(); window.scrollTo({top:document.querySelector('.panel').offsetTop-60, behavior:'smooth'}); }
+
+// ══════════════════════════════════════
+//  Profile Modal
+// ══════════════════════════════════════
+function openModal(idx) {
+  const p = allData[idx];
+  document.getElementById('modal-name').textContent = `${p.name} ${p.surname}`;
+  document.getElementById('modal-id').textContent = `${p.id} · ${p.dept}`;
+  document.getElementById('modal-coin').textContent = p.coin;
+
+  // radar chart
+  destroyChart('modalChart');
+  const actScores = p.activities.map(a=>a?1:0);
+  chartInstances.modalChart = new Chart(document.getElementById('modalChart').getContext('2d'), {
+    type:'radar',
+    data: {
+      labels: ACT_SHORT,
+      datasets:[{ data:actScores, backgroundColor:'rgba(79,142,247,0.18)', borderColor:'#4f8ef7', borderWidth:2, pointBackgroundColor:'#4f8ef7', pointRadius:4 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      scales:{ r:{ ticks:{display:false}, grid:{color:'#2a3350'}, angleLines:{color:'#2a3350'}, pointLabels:{color:'#7b87aa', font:{size:10}} } },
+      plugins:{legend:{display:false}}
+    }
+  });
+
+  document.getElementById('modal-activities').innerHTML = ACTIVITIES.map((a,i)=>
+    `<div class="activity-item">
+      <span class="activity-name">${a}</span>
+      <span class="pill ${p.activities[i]?'pill-yes':'pill-no'}">${p.activities[i]?'✓ ผ่าน':'✗ ไม่ผ่าน'}</span>
+    </div>`
+  ).join('');
+
+  document.getElementById('profileModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('profileModal').classList.remove('open');
+  destroyChart('modalChart');
+}
+document.getElementById('profileModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
