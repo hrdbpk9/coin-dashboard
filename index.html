@@ -319,7 +319,7 @@
     <button class="nav-btn" onclick="showPage('search', this)">
       <span class="icon">🔍</span> ค้นหาพนักงาน
     </button>
-    <button class="nav-btn" onclick="showPage('settings', this)">
+    <button class="nav-btn" onclick="showPage('settings', this)" style="display:none">
       <span class="icon">⚙️</span> ตั้งค่า
     </button>
     <div style="flex:1"></div>
@@ -342,7 +342,7 @@
         <div class="config-row">
           <div class="field" style="flex:3">
             <label>Sheet ID</label>
-            <input id="sheetId" placeholder="ตัวอย่าง: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" />
+            <input id="sheetId" placeholder="วาง URL เต็มหรือแค่ Sheet ID ก็ได้" />
           </div>
           <div class="field" style="flex:2">
             <label>Sheet Name (Tab)</label>
@@ -484,6 +484,7 @@
                 <th>#</th>
                 <th>รหัส</th>
                 <th>ชื่อ-สกุล</th>
+                <th>ตำแหน่ง</th>
                 <th>หน่วยงาน</th>
                 <th onclick="toggleSort('coin')">รวม Coin ⇅</th>
                 <th>สสส.</th><th>Pre-Test</th><th>Food WS</th>
@@ -559,16 +560,89 @@ function showPage(name, btn) {
   if (name === 'search' && allData.length) renderTable();
 }
 
-// initial: show settings
+// ── Auto-load config ──
+const AUTO_SHEET_ID   = '1lI-NDtt7HhsgwCuE9ze7rfud-Ps0I8_m3J1m1zP9bu8';
+const AUTO_API_KEY    = 'AIzaSyA_IpEH--LXRArKa8fXaY-awASsUUrkjlE';
+const AUTO_SHEET_NAME = 'Dashborad';
+const AUTO_DATA_START = 16;
+
 document.addEventListener('DOMContentLoaded', () => {
-  showPage('settings', document.querySelectorAll('.nav-btn')[2]);
+  // ซ่อนเมนู Settings
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.textContent.includes('ตั้งค่า')) b.style.display = 'none';
+  });
+  // โหลดข้อมูลอัตโนมัติ
+  autoLoad();
 });
+
+async function autoLoad() {
+  showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
+  document.getElementById('loader-dash').classList.add('show');
+  document.getElementById('dashboard-content').style.display = 'none';
+
+  const sheetId   = AUTO_SHEET_ID;
+  const sheetName = AUTO_SHEET_NAME;
+  const apiKey    = AUTO_API_KEY;
+  const dataStart = AUTO_DATA_START - 1;
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      let errMsg = 'ไม่สามารถโหลดข้อมูลได้';
+      try {
+        const e = await res.json();
+        const msg = e.error && e.error.message;
+        if (msg) {
+          if (msg.includes('API key not valid')) errMsg = 'API Key ไม่ถูกต้อง';
+          else if (msg.includes('not found') || res.status===404) errMsg = 'ไม่พบ Sheet';
+          else if (msg.includes('permission') || res.status===403) errMsg = 'ไม่มีสิทธิ์เข้าถึง Sheet';
+          else errMsg = msg;
+        }
+      } catch(_) {}
+      document.getElementById('loader-dash').classList.remove('show');
+      document.getElementById('dashboard-content').style.display = 'block';
+      document.getElementById('dashboard-content').innerHTML = `<div style="text-align:center;padding:60px;color:var(--red)">❌ ${errMsg}</div>`;
+      return;
+    }
+    const json = await res.json();
+    const rows = json.values || [];
+    if (rows.length < dataStart + 1) {
+      document.getElementById('loader-dash').classList.remove('show');
+      document.getElementById('dashboard-content').style.display = 'block';
+      document.getElementById('dashboard-content').innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-muted)">⚠️ ไม่พบข้อมูลในแถวที่กำหนด</div>`;
+      return;
+    }
+    allData = parseRows(rows.slice(dataStart));
+    document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
+    buildDeptFilters();
+    filteredData = [...allData];
+    document.getElementById('loader-dash').classList.remove('show');
+    renderDashboard();
+  } catch(e) {
+    document.getElementById('loader-dash').classList.remove('show');
+    document.getElementById('dashboard-content').style.display = 'block';
+    document.getElementById('dashboard-content').innerHTML = `<div style="text-align:center;padding:60px;color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
 
 // ══════════════════════════════════════
 //  Google Sheets loader
 // ══════════════════════════════════════
+function extractSheetId(input) {
+  // If it looks like a URL, pull out the ID between /d/ and the next /
+  const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  // Otherwise assume it's already a plain ID
+  return input;
+}
+
 async function loadData() {
-  const sheetId = document.getElementById('sheetId').value.trim();
+  const rawInput = document.getElementById('sheetId').value.trim();
+  const sheetId = extractSheetId(rawInput);
+  // Auto-fill the field with the clean ID so user can see what was parsed
+  document.getElementById('sheetId').value = sheetId;
+
   const sheetName = document.getElementById('sheetName').value.trim() || 'Sheet1';
   const apiKey = document.getElementById('apiKey').value.trim();
   if (!sheetId || !apiKey) { showStatus('กรุณากรอก Sheet ID และ API Key', 'error'); return; }
@@ -579,12 +653,25 @@ async function loadData() {
 
   try {
     const res = await fetch(url);
-    if (!res.ok) { const e = await res.json(); showStatus('❌ '+((e.error&&e.error.message)||'ไม่สามารถเชื่อมต่อได้'), 'error'); return; }
+    if (!res.ok) {
+      let errMsg = 'ไม่สามารถเชื่อมต่อได้';
+      try {
+        const e = await res.json();
+        const msg = e.error && e.error.message;
+        if (msg) {
+          if (msg.includes('API key not valid')) errMsg = 'API Key ไม่ถูกต้อง — กรุณาตรวจสอบ API Key อีกครั้ง';
+          else if (msg.includes('not found') || res.status===404) errMsg = 'ไม่พบ Sheet — ตรวจสอบ Sheet ID และชื่อ Tab ให้ถูกต้อง';
+          else if (msg.includes('permission') || res.status===403) errMsg = 'ไม่มีสิทธิ์เข้าถึง — ตั้ง Sheet ให้เป็น "Anyone with the link can view"';
+          else errMsg = msg;
+        }
+      } catch(_) {}
+      showStatus('❌ '+errMsg, 'error'); return;
+    }
     const json = await res.json();
     const rows = json.values || [];
     const headerRowIdx = parseInt(document.getElementById('headerRow').value||1) - 1;
     const dataStart = parseInt(document.getElementById('dataStartRow').value||2) - 1;
-    if (rows.length < dataStart+1) { showStatus('ไม่พบข้อมูล', 'error'); return; }
+    if (rows.length < dataStart+1) { showStatus('⚠️ ไม่พบข้อมูลในแถวที่กำหนด — ลองปรับ "แถวข้อมูลเริ่มต้น"', 'error'); return; }
     const dataRows = rows.slice(dataStart);
     allData = parseRows(dataRows);
     showStatus(`✅ โหลดข้อมูลสำเร็จ: ${allData.length} รายการ`, 'success');
@@ -593,14 +680,20 @@ async function loadData() {
 }
 
 function parseRows(rows) {
-  return rows.map((r,i) => {
+  // A=0 รหัส, B=1 ชื่อ, C=2 สกุล, D=3 ตำแหน่ง, E=4 หน่วยงาน, F=5 รวม Coin, G=6+ กิจกรรม
+  return rows.map((r) => {
     const acts = ACTIVITIES.map((_,ai) => {
-      const v = (r[5+ai]||'').toString().trim().toLowerCase();
-      return v === '1' || v === 'true' || v === 'yes' || v === '✓' || v === 'x';
+      const v = (r[6+ai]||'').toString().trim().toLowerCase();
+      return v === '1' || v === 'true' || v === 'yes' || v === '✓' || v === 'x' || v === 'ผ่าน';
     });
     return {
-      id: r[0]||'', name: r[1]||'', surname: r[2]||'', dept: r[3]||'',
-      coin: parseFloat(r[4])||0, activities: acts
+      id:       r[0]||'',
+      name:     r[1]||'',
+      surname:  r[2]||'',
+      position: r[3]||'',
+      dept:     r[4]||'',
+      coin:     parseFloat((r[5]||'').toString().replace(/,/g,''))||0,
+      activities: acts
     };
   }).filter(r => r.id || r.name);
 }
@@ -634,7 +727,7 @@ function loadSampleData() {
   allData = names.map((n,i) => {
     const acts = ACTIVITIES.map(() => Math.random()>0.4);
     const coin = acts.filter(Boolean).length * (5 + Math.floor(Math.random()*10));
-    return { id:'EMP'+(1001+i), name:n[0], surname:n[1], dept:depts[i%depts.length], coin, activities:acts };
+    return { id:'EMP'+(1001+i), name:n[0], surname:n[1], position:'พนักงาน', dept:depts[i%depts.length], coin, activities:acts };
   });
   showStatus(`✅ โหลดข้อมูลตัวอย่าง: ${allData.length} รายการ`, 'success');
   postLoad();
@@ -767,7 +860,7 @@ function applyFilter() {
   const q = (document.getElementById('searchInput').value||'').toLowerCase();
   filteredData = allData.filter(d => {
     const matchDept = currentDept==='all' || d.dept===currentDept;
-    const matchQ = !q || (d.name+d.surname+d.id+d.dept).toLowerCase().includes(q);
+    const matchQ = !q || (d.name+d.surname+d.id+d.dept+d.position).toLowerCase().includes(q);
     return matchDept && matchQ;
   });
   renderTable();
@@ -802,6 +895,7 @@ function renderTable() {
       <td style="color:var(--text-dim)">${rank}</td>
       <td class="cell-id">${p.id}</td>
       <td class="cell-name">${p.name} ${p.surname}</td>
+      <td class="cell-dept">${p.position}</td>
       <td class="cell-dept">${p.dept}</td>
       <td class="cell-coin" style="${coinStyle}">${p.coin}</td>
       ${acts}
@@ -833,7 +927,7 @@ function changePage(p) { currentPage=p; renderTable(); window.scrollTo({top:docu
 function openModal(idx) {
   const p = allData[idx];
   document.getElementById('modal-name').textContent = `${p.name} ${p.surname}`;
-  document.getElementById('modal-id').textContent = `${p.id} · ${p.dept}`;
+  document.getElementById('modal-id').textContent = `${p.id} · ${p.position} · ${p.dept}`;
   document.getElementById('modal-coin').textContent = p.coin;
 
   // radar chart
